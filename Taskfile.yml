@@ -1,0 +1,43 @@
+version: '3'
+
+vars:
+  TEMPLATE: main
+  BUILD_DIR: builds
+  OS_NAME: rockylinux
+  OS_VERSION: 8.4
+  OS_ARCH: x86_64
+  OS_INSTALLMODE: netinstall
+  OS_ISO_TYPE: minimal
+
+tasks:
+  validate:
+    desc: Validate the template
+    env:
+      PKR_VAR_os_version: "{{ .OS_VERSION }}"
+      PKR_VAR_os_arch: "{{ .OS_ARCH }}"
+      PKR_VAR_os_installmode: "{{ .OS_INSTALLMODE }}"
+      PKR_VAR_os_iso_type: "{{ .OS_ISO_TYPE }}"
+      PKR_VAR_build_dir: "{{ .BUILD_DIR }}"
+    cmds:
+      - packer validate --var-file=secrets.pkrvars.hcl --var "os_iso_checksum={{ .ISO_CHECKSUM }}" .
+    vars:
+      ISO_CHECKSUM:
+        sh: curl --silent https://download.rockylinux.org/pub/rocky/8/isos/{{ .OS_ARCH }}/CHECKSUM | awk 'match($0, "^SHA256\\W{2}Rocky-{{ .OS_VERSION }}-{{ .OS_ARCH }}-{{ .OS_ISO_TYPE }}.iso\\W{4}([a-zA-Z0-9]*)$", m) {print m[1]}'
+  build:
+    desc: Build the image
+    deps: [validate]
+    env:
+      PKR_VAR_os_version: "{{ .OS_VERSION }}"
+      PKR_VAR_os_arch: "{{ .OS_ARCH }}"
+      PKR_VAR_os_installmode: "{{ .OS_INSTALLMODE }}"
+      PKR_VAR_os_iso_type: "{{ .OS_ISO_TYPE }}"
+      PKR_VAR_build_dir: "{{ .BUILD_DIR }}"
+    cmds:
+      - packer build --var-file=secrets.pkrvars.hcl --var "os_iso_checksum={{ .ISO_CHECKSUM }}" .
+    vars:
+      ISO_CHECKSUM:
+        sh: curl --silent https://download.rockylinux.org/pub/rocky/8/isos/{{ .OS_ARCH }}/CHECKSUM | awk 'match($0, "^SHA256\\W{2}Rocky-{{ .OS_VERSION }}-{{ .OS_ARCH }}-{{ .OS_ISO_TYPE }}.iso\\W{4}([a-zA-Z0-9]*)$", m) {print m[1]}'
+  clean:
+    desc: Remove old and unneccessary artifacts
+    cmds:
+      - rm -rf {{ .BUILD_DIR }}
